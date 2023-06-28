@@ -1,4 +1,5 @@
 import { NextApiRequest, NextApiResponse } from "next";
+import { NextRequest } from "next/server";
 
 import { createResolver } from "./validation";
 import type { SCHEMA_TYPE } from "./validation";
@@ -10,6 +11,29 @@ type ValidationHoF = {
   mode?: "body" | "query" | "headers";
   schema: unknown;
 };
+
+const selectMode = (nxtReq: NextRequest, mode: ValidationHoF['mode']) => {
+  switch (mode) {
+    case 'headers':
+      return nxtReq.headers;
+      case 'body':
+        return nxtReq.body;
+    case 'query':
+    default:
+      return nxtReq.nextUrl.searchParams;
+  }
+}
+export function plainValidations(nxtReq: NextRequest, validations: ValidationHoF[]) {
+  try {
+    validations.forEach((validation) => {
+      const resolver = createResolver(validation.type, validation.schema);
+      resolver.validate(selectMode(nxtReq, validation.mode));
+    });
+    return [];
+  } catch (error) {
+    return error;
+  }
+}
 
 export function withValidation({
   type,
